@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciador de Tarefas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <h1 class="animate__animated animate__fadeInDown">Gerenciador de Tarefas</h1>
+    <div class="container">
+        <form id="task-form" class="animate__animated animate__fadeInUp">
+            <input type="text" id="task-title" placeholder="Título da Tarefa" required>
+            <textarea id="task-description" placeholder="Descrição da Tarefa" required></textarea>
+            <input type="date" id="task-date" required>
+            <input type="text" id="task-owner" placeholder="Nome do Proprietário" required>
+            <button type="submit">Adicionar Tarefa</button>
+        </form>
+        <div class="task-list" id="task-list">
+            <!-- Tarefas serão listadas aqui -->
+        </div>
+    </div>
+    <button class="btn-cadastro" onclick="window.location.href='cadastro.html'">Cadastro</button>
+
+    <script src="app.js"></script>
+</body>
+</html>
