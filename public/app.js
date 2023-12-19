@@ -6,10 +6,33 @@ document.addEventListener('DOMContentLoaded', function() {
     const taskOwnerInput = document.getElementById('task-owner');
     const taskList = document.getElementById('task-list');
 
+    fetch('/users')
+    .then(response => response.json())
+    .then(users => {
+        const taskOwnerSelect = document.getElementById('task-owner');
+        // Adiciona uma opção vazia no início
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.text = 'Selecione um usuário';
+        defaultOption.selected = true;
+        defaultOption.disabled = true;
+        taskOwnerSelect.appendChild(defaultOption);
+        // Adiciona as opções para os usuários
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.Nome;
+            option.text = user.Nome;
+            taskOwnerSelect.appendChild(option);
+        });
+    })
+    .catch(error => console.error('Erro ao buscar usuários:', error));
+
     taskForm.addEventListener('submit', function(event) {
         event.preventDefault();
         addTask();
-    });
+
+
+});
 
     function addTask() {
         const title = taskTitleInput.value;

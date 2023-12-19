@@ -3,7 +3,7 @@ const mysql = require('mysql');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const passport = require('passport');
-const GitHubStrategy = require('passport-github').Strategy;
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
 
 const app = express();
@@ -11,6 +11,68 @@ const port = 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(session({
+    secret: 'trab_api',
+    resave: false,
+    saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser(function(user, done) {
+    done(null, user);
+  });
+  
+  passport.deserializeUser(function(user, done) {
+    done(null, user);
+  });
+
+passport.use(new GoogleStrategy({
+    clientID: '815392041740-8jh2inta0mmv35p3uv7tt3d6pvnbu0oo.apps.googleusercontent.com',
+    clientSecret: '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',
+    callbackURL: "http://localhost:3000/auth/google/callback"
+  },
+  function(accessToken, refreshToken, profile, cb) {
+    const { id, displayName, emails } = profile;
+    db.query('SELECT * FROM Users WHERE Email = ?', [emails[0].value], (err, results) => {
+        if (err) {
+            console.error('Erro ao buscar usuário:', err);
+            return cb(err);
+        } else if (results.length > 0) {
+            // O usuário já existe, retorne o usuário
+            return cb(null, results[0]);
+        } else {
+            // O usuário não existe, crie um novo usuário
+            db.query('INSERT INTO Users (Nome, Email, TokenOAuth) VALUES (?, ?, ?)', [displayName, emails[0].value, id], (err, result) => {
+                if (err) {
+                    console.error('Erro ao criar usuário:', err);
+                    return cb(err);
+                } else {
+                    db.query('SELECT * FROM Users WHERE UserID = ?', [result.insertId], (err, results) => {
+                        if (err) {
+                            console.error('Erro ao buscar usuário:', err);
+                            return cb(err);
+                        } else {
+                            return cb(null, results[0]);
+                        }
+                    });
+                }
+            });
+        }
+    });
+}));
+
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  function(req, res) {
+    // Redireciona para a página principal após o login bem-sucedido
+    res.redirect('/');
+  });
 
 // Configuração da conexão com o banco de dados
 const db = mysql.createConnection({
@@ -30,43 +92,6 @@ db.connect(err => {
 });
 
 
-passport.use(new GitHubStrategy({
-    clientID: 'clientid',
-    clientSecret: 'clientsecret',
-    callbackURL: "http://localhost:3000/auth/github/callback"
-  },
-  function(accessToken, refreshToken, profile, cb) {
-    return cb(null, profile);
-  }
-));
-
-passport.serializeUser(function(user, cb) {
-  cb(null, user);
-});
-
-passport.deserializeUser(function(obj, cb) {
-  cb(null, obj);
-});
-
-// Adicione o middleware de sessão
-app.use(session({ secret: '123', resave: false, saveUninitialized: false }));
-
-// Inicialize o Passport e restaure o estado da autenticação da sessão, se houver
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Rota para iniciar a autenticação com o GitHub
-app.get('/auth/github',
-  passport.authenticate('github'));
-
-// Rota de retorno de chamada após a autenticação com o GitHub
-app.get('/auth/github/callback', 
-  passport.authenticate('github', { failureRedirect: '/login' }),
-  function(req, res) {
-    res.redirect('/');
-  });
-
-
 // Endpoint para listar todas as tarefas
 app.get('/tasks', (req, res) => {
     db.query('SELECT * FROM Tasks', (err, results) => {
@@ -77,26 +102,18 @@ app.get('/tasks', (req, res) => {
 
 // Endpoint para criar uma nova tarefa
 app.post('/tasks', (req, res) => {
-    const { title, description, completionDate, ownerName } = req.body;
-    db.query('SELECT UserID FROM Users WHERE Nome = ?', [ownerName], (err, results) => {
+    const { title, description, completionDate} = req.body;
+    const userID = req.user.UserID;
+    db.query('INSERT INTO Tasks (UserID, Título, Descrição, DataDeConclusão, Status) VALUES (?, ?, ?, ?, ?)', [userID, title, description, completionDate, 'pendente'], (err, result) => {
         if (err) {
-            console.error('Erro ao buscar usuário:', err);
-            res.status(500).send('Erro ao buscar usuário.');
-        } else if (results.length > 0) {
-            const userID = results[0].UserID;
-            db.query('INSERT INTO Tasks (UserID, Título, Descrição, DataDeConclusão, Status) VALUES (?, ?, ?, ?, ?)', [userID, title, description, completionDate, 'pendente'], (err, result) => {
-                if (err) {
-                    console.error('Erro ao criar tarefa:', err);
-                    res.status(500).send('Erro ao criar tarefa.');
-                } else {
-                    res.status(201).json({ TaskID: result.insertId, UserID: userID, Título: title, Descrição: description, DataDeConclusão: completionDate, Status: 'pendente' });
-                }
-            });
+            console.error('Erro ao criar tarefa:', err);
+            res.status(500).send('Erro ao criar tarefa.');
         } else {
-            res.status(404).send('Proprietário não encontrado.');
+            res.status(201).json({ TaskID: result.insertId, UserID: userID, Título: title, Descrição: description, DataDeConclusão: completionDate, Status: 'pendente' });
         }
     });
 });
+
 
 // Endpoint para atualizar uma tarefa existente
 app.put('/tasks/:id', (req, res) => {
@@ -150,6 +167,36 @@ app.post('/users', async (req, res) => {
     }
 });
 
+app.get('/users', (req, res) => {
+    db.query('SELECT Nome FROM Users', (err, results) => {
+        if (err) {
+            console.error('Erro ao listar usuários:', err);
+            res.status(500).send('Erro ao listar usuários.');
+        } else {
+            res.json(results);
+        }
+    });
+});
+
+app.post('/login', async (req, res) => {
+    const { email, senha } = req.body;
+    db.query('SELECT * FROM Users WHERE Email = ?', [email], async (err, results) => {
+        if (err) {
+            console.error('Erro ao buscar usuário:', err);
+            res.status(500).send('Erro ao buscar usuário.');
+        } else if (results.length > 0) {
+            const user = results[0];
+            const senhaCorreta = await bcrypt.compare(senha, user.Senha);
+            if (senhaCorreta) {
+                res.status(200).send('Login bem-sucedido.');
+            } else {
+                res.status(401).send('Senha incorreta.');
+            }
+        } else {
+            res.status(404).send('Usuário não encontrado.');
+        }
+    });
+});
 
 app.listen(port, () => {
     console.log(`Servidor rodando na porta ${port}`);
