@@ -102,8 +102,7 @@ app.get('/tasks', (req, res) => {
 
 // Endpoint para criar uma nova tarefa
 app.post('/tasks', (req, res) => {
-    const { title, description, completionDate} = req.body;
-    const userID = req.user.UserID;
+    const { title, description, completionDate, userID} = req.body;
     db.query('INSERT INTO Tasks (UserID, Título, Descrição, DataDeConclusão, Status) VALUES (?, ?, ?, ?, ?)', [userID, title, description, completionDate, 'pendente'], (err, result) => {
         if (err) {
             console.error('Erro ao criar tarefa:', err);

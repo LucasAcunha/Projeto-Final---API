@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const taskTitleInput = document.getElementById('task-title');
     const taskDescriptionInput = document.getElementById('task-description');
     const taskDateInput = document.getElementById('task-date');
-    const taskOwnerInput = document.getElementById('task-owner');
+    const taskOwnerSelect = document.getElementById('task-owner');
     const taskList = document.getElementById('task-list');
 
     fetch('/users')
@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Adiciona as opções para os usuários
         users.forEach(user => {
             const option = document.createElement('option');
-            option.value = user.Nome;
+            option.value = user.UserID;
             option.text = user.Nome;
             taskOwnerSelect.appendChild(option);
         });
@@ -38,14 +38,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const title = taskTitleInput.value;
         const description = taskDescriptionInput.value;
         const completionDate = taskDateInput.value;
-        const ownerName = taskOwnerInput.value;
+        const UserID = taskOwnerSelect.value;
     
         fetch('/tasks', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ title, description, completionDate, ownerName }),
+            body: JSON.stringify({ title, description, completionDate, UserID }),
         })
         .then(response => response.json())
         .then(data => {
